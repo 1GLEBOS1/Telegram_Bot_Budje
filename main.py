@@ -1,5 +1,9 @@
+import logging
 from aiogram import Bot, Dispatcher, types, exceptions
 from configs import token
+
+# Logging
+logging.basicConfig(level=logging.INFO)
 
 # Initialization
 bot = Bot(token=token)
