@@ -10,3 +10,7 @@ class Register(StatesGroup):
     Telephone = State()
     Password_first = State()
     Password_second = State()
+
+
+class Report(StatesGroup):
+    date = State()

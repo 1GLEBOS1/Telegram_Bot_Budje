@@ -3,7 +3,7 @@ from aiogram import Bot, Dispatcher, types, executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from configs import token
-from finite_state_machine import Login, Register
+from finite_state_machine import Login, Register, Report
 
 # Logging
 logging.basicConfig(level=logging.INFO)
@@ -44,9 +44,13 @@ async def login_cmd(message=types.Message, state=FSMContext):
 # Handler Login.Telephone state
 @dp.message_handler(state=Login.Telephone)
 async def login_telephone(message=types.Message, state=FSMContext):
-    await state.update_data(telephone=message.text)
-    await message.reply('Пароль:', reply=False)
-    await Login.next()
+    try:
+        await state.update_data(telephone=int(message.text))
+        await message.reply('Пароль:', reply=False)
+        await Login.next()
+    except ValueError:
+        await message.reply('Пожалуйста, вводите номер числами', reply=False)
+        await state.finish()
 
 
 # Handler Login.Password state
@@ -98,13 +102,33 @@ async def register_password_second(message=types.Message, state=FSMContext):
         try:
             # Querry to database
             await message.reply(f'Добро пожаловать, {user}', reply=False)
-            await state.finish()
         except BaseException:
             await message.reply('Произошла ошибка, пожалуйста, повтрите попытку регистрации', reply=False)
+        finally:
             await state.finish()
-
     else:
         await message.reply('Пожалуйста, вводите одинаковые пароли, регистрация прошла неудачно', reply=False)
+        await state.finish()
+
+
+#
+@dp.message_handler(commands=['report'])
+async def report_cmd(message=types.Message, state=FSMContext):
+    await message.reply('Пожалуйста, введите период отчета: ', reply=False)
+    await Report.first()
+
+
+#
+@dp.message_handler(state=Report.date)
+async def report_date(message=types.Message, state=FSMContext):
+    await state.update_data(date=message.text)
+    try:
+        date = await state.update_data(date=int(message.text))
+        # Query to database
+        await message.reply('-', reply=False)
+    except ValueError:
+        await message.reply('Пожалуйста, вводите дату числами', reply=False)
+    finally:
         await state.finish()
 
 if True:
