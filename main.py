@@ -2,8 +2,8 @@ import logging
 from aiogram import Bot, Dispatcher, types, executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
-from configs import token
-from finite_state_machine import Login, Register, Report
+from config import token
+from finite_state_machine import Login, Register, Report, Income
 
 # Logging
 logging.basicConfig(level=logging.INFO)
@@ -18,7 +18,7 @@ dp = Dispatcher(bot=bot, storage=storage)
 @dp.message_handler(commands=['start'])
 async def start_cmd(message=types.Message):
     user = message.from_user.username
-    await message.reply(f'Здравствуйте, {user}', reply=False)
+    await message.reply(f'Здравствуйте, {user}!', reply=False)
 
 
 # Handler /help command
@@ -49,7 +49,7 @@ async def login_telephone(message=types.Message, state=FSMContext):
         await message.reply('Пароль:', reply=False)
         await Login.next()
     except ValueError:
-        await message.reply('Пожалуйста, вводите номер числами', reply=False)
+        await message.reply('Пожалуйста, вводите номер числами.', reply=False)
         await state.finish()
 
 
@@ -60,10 +60,10 @@ async def login_password(message=types.Message, state=FSMContext):
     await state.update_data(password=message.text)
     try:
         # Querry to database
-        await message.reply(f'Здраввствуйте, {user}', reply=False)
+        await message.reply(f'Здраввствуйте, {user}!', reply=False)
         await state.finish()
     except BaseException:
-        await message.reply('Произошла ошибка, пожалуйста, повтрите попытку входа', reply=False)
+        await message.reply('Произошла ошибка, пожалуйста, повтрите попытку входа.', reply=False)
 
 
 # Handler /register command
@@ -85,7 +85,7 @@ async def register_telephone(message=types.Message, state=FSMContext):
 @dp.message_handler(state=Register.Password_first)
 async def register_password_first(message=types.Message, state=FSMContext):
     await state.update_data(password_1=message.text)
-    await message.reply('Пожалуйста, повторите пароль', reply=False)
+    await message.reply('Пожалуйста, повторите пароль:', reply=False)
     await Register.next()
 
 
@@ -101,13 +101,13 @@ async def register_password_second(message=types.Message, state=FSMContext):
     if first_password == second_password:
         try:
             # Querry to database
-            await message.reply(f'Добро пожаловать, {user}', reply=False)
+            await message.reply(f'Добро пожаловать, {user}!', reply=False)
         except BaseException:
-            await message.reply('Произошла ошибка, пожалуйста, повтрите попытку регистрации', reply=False)
+            await message.reply('Произошла ошибка, пожалуйста, повтрите попытку регистрации.', reply=False)
         finally:
             await state.finish()
     else:
-        await message.reply('Пожалуйста, вводите одинаковые пароли, регистрация прошла неудачно', reply=False)
+        await message.reply('Пожалуйста, вводите одинаковые пароли, регистрация прошла неудачно.', reply=False)
         await state.finish()
 
 
@@ -127,9 +127,47 @@ async def report_date(message=types.Message, state=FSMContext):
         # Query to database
         await message.reply('-', reply=False)
     except ValueError:
-        await message.reply('Пожалуйста, вводите дату числами', reply=False)
+        await message.reply('Пожалуйста, вводите дату числами.', reply=False)
     finally:
         await state.finish()
 
-if True:
-    executor.start_polling(dp, skip_updates=True)
+
+@dp.message_handler(commands=['income'])
+async def income_cmd(message=types.Message, state=FSMContext):
+    await Income.first()
+    await message.reply('Пожалуйста, введите дату вашего дохода:', reply=False)
+
+
+@dp.message_handler(state=Income.date)
+async def income_date(message=types.Message, state=FSMContext):
+    try:
+        await state.update_data(date=int(message.text))
+        await message.reply('Пожалуйста, выберите категорию дохода:', reply=False)
+        await Income.next()
+    except ValueError:
+        await message.reply('Пожалуйста, введите дату цыфрами.')
+        await state.finish()
+
+
+@dp.message_handler(state=Income.category)
+async def income_category(message=types.Message, state=FSMContext):
+    await state.update_data(category=message.text)
+    await message.reply('Пожалуйста, введите размер дохода:', reply=False)
+    await Income.next()
+
+
+@dp.message_handler(state=Income.size)
+async def income_date(message=types.Message, state=FSMContext):
+    await state.update_data(size=int(message.text))
+    data = await state.get_data()
+    date = data['date']
+    category = data['category']
+    size = data['size']
+    await message.reply(f'Отлично, Ваш доход размером {size} категории {category} {date} учтен.', reply=False)
+
+
+while True:
+    try:
+        executor.start_polling(dp, skip_updates=True)
+    except asyncio.exceptions.TimeoutError:
+        continue

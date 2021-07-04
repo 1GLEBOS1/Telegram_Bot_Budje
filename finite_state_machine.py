@@ -14,3 +14,9 @@ class Register(StatesGroup):
 
 class Report(StatesGroup):
     date = State()
+
+
+class Income(StatesGroup):
+    date = State()
+    category = State()
+    size = State()
