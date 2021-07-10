@@ -20,3 +20,9 @@ class Income(StatesGroup):
     date = State()
     category = State()
     size = State()
+
+
+class Cost(StatesGroup):
+    date = State()
+    category = State()
+    size = State()

@@ -3,7 +3,8 @@ from aiogram import Bot, Dispatcher, types, executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher import FSMContext
 from config import token
-from finite_state_machine import Login, Register, Report, Income
+from finite_state_machine import Login, Register, Report, Income, Cost
+import asyncio
 
 # Logging
 logging.basicConfig(level=logging.INFO)
@@ -36,7 +37,7 @@ async def help_cmd(message=types.Message):
 
 # Handler /login command
 @dp.message_handler(commands=['login'])
-async def login_cmd(message=types.Message, state=FSMContext):
+async def login_cmd(message=types.Message):
     await message.reply('Номер телефона:', reply=False)
     await Login.first()
 
@@ -68,7 +69,7 @@ async def login_password(message=types.Message, state=FSMContext):
 
 # Handler /register command
 @dp.message_handler(commands=['register'])
-async def register_cmd(message=types.Message, state=FSMContext):
+async def register_cmd(message=types.Message):
     await message.reply('Номер телефона:', reply=False)
     await Register.first()
 
@@ -111,19 +112,19 @@ async def register_password_second(message=types.Message, state=FSMContext):
         await state.finish()
 
 
-#
+# Handler Report command
 @dp.message_handler(commands=['report'])
-async def report_cmd(message=types.Message, state=FSMContext):
+async def report_cmd(message=types.Message):
     await message.reply('Пожалуйста, введите период отчета: ', reply=False)
     await Report.first()
 
 
-#
+# Handler Report.date state
 @dp.message_handler(state=Report.date)
 async def report_date(message=types.Message, state=FSMContext):
     await state.update_data(date=message.text)
     try:
-        date = await state.update_data(date=int(message.text))
+        await state.update_data(date=int(message.text))
         # Query to database
         await message.reply('-', reply=False)
     except ValueError:
@@ -132,12 +133,14 @@ async def report_date(message=types.Message, state=FSMContext):
         await state.finish()
 
 
+# Handler Income command
 @dp.message_handler(commands=['income'])
-async def income_cmd(message=types.Message, state=FSMContext):
+async def income_cmd(message=types.Message):
     await Income.first()
     await message.reply('Пожалуйста, введите дату вашего дохода:', reply=False)
 
 
+# Handler Income.date state
 @dp.message_handler(state=Income.date)
 async def income_date(message=types.Message, state=FSMContext):
     try:
@@ -149,6 +152,7 @@ async def income_date(message=types.Message, state=FSMContext):
         await state.finish()
 
 
+# Handler Inacome.category state
 @dp.message_handler(state=Income.category)
 async def income_category(message=types.Message, state=FSMContext):
     await state.update_data(category=message.text)
@@ -156,18 +160,64 @@ async def income_category(message=types.Message, state=FSMContext):
     await Income.next()
 
 
+# Handler Income.size state
 @dp.message_handler(state=Income.size)
-async def income_date(message=types.Message, state=FSMContext):
-    await state.update_data(size=int(message.text))
-    data = await state.get_data()
-    date = data['date']
-    category = data['category']
-    size = data['size']
-    await message.reply(f'Отлично, Ваш доход размером {size} категории {category} {date} учтен.', reply=False)
-
-
-while True:
+async def income_size(message=types.Message, state=FSMContext):
     try:
-        executor.start_polling(dp, skip_updates=True)
-    except asyncio.exceptions.TimeoutError:
-        continue
+        await state.update_data(size=int(message.text))
+        data = await state.get_data()
+        date = data['date']
+        category = data['category']
+        size = data['size']
+        await message.reply(f'Отлично, Ваш доход размером {size} категории {category} {date} учтен.', reply=False)
+    except ValueError:
+        await message.reply('Пожалуйста, вводите размер дохода числами.')
+    finally:
+        await state.finish()
+
+
+# Handler Cost command
+@dp.message_handler(commands=['cost'])
+async def cost_cmd(message=types.Message):
+    await Cost.first()
+    await message.reply('Пожалуйста, введите дату расхода:', reply=False)
+
+
+# Handler Cost.date state
+@dp.message_handler(state=Cost.date)
+async def cost_date(message=types.Message, state=FSMContext):
+    try:
+        await state.update_data(date=int(message.text))
+        await message.reply('Пожалуйста, выберите категорию:', reply=False)
+        await Cost.next()
+    except ValueError:
+        await message.reply('Пожалуйста, вводите дату числами.', reply=False)
+        await state.finish()
+
+
+# Handler Cost.category state
+@dp.message_handler(state=Cost.category)
+async def cost_category(message=types.Message, state=FSMContext):
+    await state.update_data(category=message.text)
+    await message.reply('Пожалуйста, введите размер расхода', reply=False)
+    await Cost.next()
+
+
+# Handler Cost.size state
+@dp.message_handler(state=Cost.size)
+async def cost_size(message=types.Message, state=FSMContext):
+    try:
+        await state.update_data(size=int(message.text))
+        data = await state.get_data()
+        date = data['date']
+        category = data['category']
+        size = data['size']
+        # Querry to database
+        await message.reply(f'Отлично, Ваш расход размером {size} категории {category} {date} учтен.', reply=False)
+    except ValueError:
+        await message.reply('Пожалуйста, вводите размер расхода числами')
+    finally:
+        await state.finish()
+
+if True:
+    executor.start_polling(dp, skip_updates=True)
